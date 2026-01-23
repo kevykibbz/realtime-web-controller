@@ -1,9 +1,11 @@
 import React, { createContext, useContext } from 'react';
 import io from 'socket.io-client';
 
-// Create a singleton socket instance
-const port = import.meta.env.VITE_PORT || 3001;
-const socket = io(`http://localhost:${port}`);
+// IMPORTANT: connect to the BACKEND, not the UI
+const socket = io('https://realtime-web-controller.onrender.com', {
+  transports: ['websocket'],
+});
+
 const SocketContext = createContext(socket);
 
 // Custom hook to use the socket context
