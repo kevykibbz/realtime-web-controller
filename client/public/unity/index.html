@@ -1,94 +1,68 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8" />
-    <title>Unity WebGL Player | BSG</title>
+<head>
+  <meta charset="utf-8" />
+  <title>Unity WebGL Player | BSG</title>
 
-    <link rel="shortcut icon" href="TemplateData/favicon.ico" />
-    <link rel="stylesheet" href="TemplateData/style.css" />
+  <link rel="shortcut icon" href="TemplateData/favicon.ico" />
+  <link rel="stylesheet" href="TemplateData/style.css" />
 
-    <style>
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background: black;
-        overflow: hidden;
-      }
-    </style>
-  </head>
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: black;
+      overflow: hidden;
+    }
+  </style>
+</head>
 
-  <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width="960" height="600"></canvas>
+<body>
+  <canvas id="unity-canvas"></canvas>
 
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
-        </div>
-      </div>
+  <script>
+    const buildUrl = "Build";
+    const loaderUrl = buildUrl + "/WebSocketTest.loader.js";
 
-      <div id="unity-warning"></div>
-      <div id="unity-footer">
-        <div id="unity-fullscreen-button"></div>
-      </div>
-    </div>
+    const config = {
+      dataUrl: buildUrl + "/WebSocketTest.data",
+      frameworkUrl: buildUrl + "/WebSocketTest.framework.js",
+      codeUrl: buildUrl + "/WebSocketTest.wasm",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "BSG",
+      productVersion: "0.1.0",
+    };
 
-    <script>
-      const canvas = document.querySelector("#unity-canvas");
-      const loadingBar = document.querySelector("#unity-loading-bar");
-      const progressBarFull = document.querySelector("#unity-progress-bar-full");
-      const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+    const canvas = document.querySelector("#unity-canvas");
 
-      const buildUrl = "Build";
-      const loaderUrl = buildUrl + "/WebSocketTest.loader.js";
+    const script = document.createElement("script");
+    script.src = loaderUrl;
 
-      const config = {
-        dataUrl: buildUrl + "/WebSocketTest.data",
-        frameworkUrl: buildUrl + "/WebSocketTest.framework.js",
-        codeUrl: buildUrl + "/WebSocketTest.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "BSG",
-        productVersion: "0.1.0",
-      };
+    script.onload = () => {
+      createUnityInstance(canvas, config).then((unityInstance) => {
+        window.unityInstance = unityInstance;
 
-      loadingBar.style.display = "block";
+        // Tell React we're ready
+        window.parent.postMessage({ type: "UNITY_READY" }, "*");
 
-      const script = document.createElement("script");
-      script.src = loaderUrl;
-
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = `${progress * 100}%`;
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-
-          fullscreenButton.onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-
-          // ✅ Expose Unity safely
-          window.unityInstance = unityInstance;
-
-          // ✅ Notify React parent that Unity is ready
-          if (window.parent) {
-            window.parent.postMessage(
-              { type: "UNITY_READY" },
-              "*"
+        // Listen for React → Unity messages
+        window.addEventListener("message", (event) => {
+          if (event.data?.type === "FROM_REACT") {
+            unityInstance.SendMessage(
+              "WebGLBridge",
+              "OnControllerEvent",
+              JSON.stringify(event.data.payload)
             );
           }
-
-          console.log("Unity loaded and ready");
-        }).catch((err) => {
-          console.error(err);
-          alert(err);
         });
-      };
 
-      document.body.appendChild(script);
-    </script>
-  </body>
+        console.log("✅ Unity fully initialized");
+      });
+    };
+
+    document.body.appendChild(script);
+  </script>
+</body>
 </html>

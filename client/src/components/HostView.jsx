@@ -1,17 +1,28 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useSocket } from "../contexts/SocketContext.jsx";
 import { Button } from "components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent
+} from "components/ui/card";
 import { Input } from "components/ui/input";
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell
 } from "components/ui/table";
-import { Users, ClipboardCopy, Link as LinkIcon, Search } from "lucide-react";
+import { Users, ClipboardCopy } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import { motion, AnimatePresence } from "framer-motion";
 
 function HostView() {
   const socket = useSocket();
+  const iframeRef = useRef(null);
 
   const [lobbyId, setLobbyId] = useState("");
   const [players, setPlayers] = useState([]);
@@ -19,31 +30,34 @@ function HostView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [unityReady, setUnityReady] = useState(false);
 
-  // ✅ Unity → React handshake
+  /* =========================
+     UNITY HANDSHAKE
+     ========================= */
   useEffect(() => {
-    const handleMessage = (event) => {
+    const onMessage = (event) => {
       if (event.data?.type === "UNITY_READY") {
-        console.log("Unity handshake received");
+        console.log("✅ Unity handshake received");
         setUnityReady(true);
       }
     };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // ✅ Socket → Unity bridge (SAFE)
+  /* =========================
+     SOCKET → UNITY BRIDGE
+     ========================= */
   useEffect(() => {
     const handleUnityEvent = (data) => {
-      if (!unityReady || !window.unityInstance) {
-        console.warn("Unity not ready, event skipped");
-        return;
-      }
+      if (!unityReady || !iframeRef.current) return;
 
-      window.unityInstance.SendMessage(
-        "WebGLBridge",
-        "OnControllerEvent",
-        JSON.stringify(data)
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: "FROM_REACT",
+          payload: data
+        },
+        "*"
       );
     };
 
@@ -51,7 +65,9 @@ function HostView() {
     return () => socket.off("unity-event", handleUnityEvent);
   }, [socket, unityReady]);
 
-  // Lobby lifecycle
+  /* =========================
+     LOBBY STATE
+     ========================= */
   useEffect(() => {
     socket.on("lobby-created", setLobbyId);
     socket.on("player-joined", setPlayers);
@@ -93,9 +109,10 @@ function HostView() {
             </Button>
           ) : (
             <>
-              {/* UNITY GAME */}
+              {/* UNITY IFRAME */}
               <div className="w-full aspect-video bg-black rounded-lg overflow-hidden mb-6">
                 <iframe
+                  ref={iframeRef}
                   src="/unity/index.html"
                   title="Unity Game"
                   className="w-full h-full"
