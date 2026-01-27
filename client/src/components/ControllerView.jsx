@@ -99,20 +99,31 @@ function ControllerView() {
   };
 
   const handleButtonPress = () => {
-    console.log('Button pressed, lobbyId:', lobbyId);
-    if (lobbyId) {
-      socket.emit("controller-input", { lobbyId, action: "press" });
-      console.log('Sent press event');
-    }
-  };
+  if (!lobbyId || !player) return;
 
-  const handleButtonRelease = () => {
-    console.log('Button released, lobbyId:', lobbyId);
-    if (lobbyId) {
-      socket.emit("controller-input", { lobbyId, action: "release" });
-      console.log('Sent release event');
-    }
-  };
+  socket.emit("controller-input", {
+    lobbyId,
+    type: "BUTTON",
+    action: "press",
+    playerId: player.id
+  });
+
+  console.log("Sent BUTTON press");
+};
+
+const handleButtonRelease = () => {
+  if (!lobbyId || !player) return;
+
+  socket.emit("controller-input", {
+    lobbyId,
+    type: "BUTTON",
+    action: "release",
+    playerId: player.id
+  });
+
+  console.log("Sent BUTTON release");
+};
+
 
 
 
