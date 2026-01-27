@@ -1,5 +1,12 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import {
+  HashRouter as Router,   // ✅ CHANGE HERE
+  Route,
+  Routes,
+  useLocation,
+  useNavigate
+} from 'react-router-dom';
+
 import { SocketProvider } from './contexts/SocketContext.jsx';
 import Home from './components/Home.jsx';
 import HostView from './components/HostView.jsx';
@@ -7,16 +14,21 @@ import ControllerView from './components/ControllerView.jsx';
 import NotFound from './components/NotFound.jsx';
 import './App.css';
 
+/**
+ * Auto-redirect:
+ * If someone opens the site with ?lobbyId=XXXX
+ * → automatically send them to the controller view
+ */
 function AutoControllerRedirect() {
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const lobbyId = params.get("lobbyId");
+    const lobbyId = params.get('lobbyId');
 
-    // If we're at "/" with a lobbyId, auto-redirect to controller
-    if (lobbyId && location.pathname === "/") {
+    // HashRouter paths still look like "/"
+    if (lobbyId && location.pathname === '/') {
       navigate(`/controller?lobbyId=${lobbyId}`, { replace: true });
     }
   }, [location, navigate]);
@@ -27,8 +39,9 @@ function AutoControllerRedirect() {
 function App() {
   return (
     <SocketProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Router>
         <AutoControllerRedirect />
+
         <div className="App">
           <Routes>
             <Route path="/" element={<Home />} />
@@ -41,6 +54,5 @@ function App() {
     </SocketProvider>
   );
 }
-
 
 export default App;
