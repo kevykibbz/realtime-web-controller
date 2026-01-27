@@ -7,95 +7,146 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Configure CORS based on environment
-const corsOrigin = process.env.NODE_ENV === 'production' 
-  ? true // Allow all origins in production (will be handled by the same domain)
-  : ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"];
+// CORS
+const corsOrigin =
+  process.env.NODE_ENV === 'production'
+    ? true
+    : [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+      ];
 
 const io = socketIo(server, {
   cors: {
     origin: corsOrigin,
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
-// Serve static files from the React app
+// Serve React build
 app.use(express.static(path.join(__dirname, 'client/build')));
 
-
+// --------------------
+// Lobby state
+// --------------------
 const lobbies = {};
 
 function generateLobbyId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+// --------------------
+// Socket logic
+// --------------------
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  console.log('🔌 user connected:', socket.id);
 
+  // ---- CREATE LOBBY (HOST)
   socket.on('create-lobby', () => {
-    const newLobbyId = generateLobbyId();
-    lobbies[newLobbyId] = {
+    const lobbyId = generateLobbyId();
+
+    lobbies[lobbyId] = {
       players: [],
     };
-    socket.join(newLobbyId);
-    socket.emit('lobby-created', newLobbyId);
-    console.log(`Lobby ${newLobbyId} created`);
+
+    socket.join(lobbyId);
+    socket.emit('lobby-created', lobbyId);
+
+    console.log(`🎮 Lobby ${lobbyId} created by host ${socket.id}`);
   });
 
+  // ---- JOIN LOBBY (CONTROLLER)
   socket.on('join-lobby', (data) => {
-    const lobbyId = data.lobbyId || data;
-    const playerName = data.playerName || `Player ${lobbies[lobbyId]?.players.length + 1}`;
-    
-    if (lobbies[lobbyId]) {
-      socket.join(lobbyId);
-      const newPlayer = { id: socket.id, name: playerName, score: 0 };
-      lobbies[lobbyId].players.push(newPlayer);
-      
-      // Confirm successful join to the controller with their new player data
-      socket.emit('join-lobby-success', newPlayer);
-      // Update the host with the new list of all players
-      io.to(lobbyId).emit('player-joined', lobbies[lobbyId].players);
+    const lobbyId = data.lobbyId?.toUpperCase();
+    const playerName =
+      data.playerName ||
+      `Player ${lobbies[lobbyId]?.players.length + 1}`;
 
-      console.log(`Player ${playerName} (${socket.id}) joined lobby ${lobbyId}`);
-    } else {
+    if (!lobbies[lobbyId]) {
       socket.emit('join-lobby-error', 'Lobby not found');
-      console.log(`Player ${socket.id} failed to join lobby ${lobbyId}: not found`);
+      console.log(`❌ Join failed: lobby ${lobbyId} not found`);
+      return;
     }
+
+    socket.join(lobbyId);
+
+    const newPlayer = {
+      id: socket.id,
+      name: playerName,
+      score: 0,
+    };
+
+    lobbies[lobbyId].players.push(newPlayer);
+
+    socket.emit('join-lobby-success', newPlayer);
+    io.to(lobbyId).emit('player-joined', lobbies[lobbyId].players);
+
+    console.log(
+      `👤 ${playerName} (${socket.id}) joined lobby ${lobbyId}`
+    );
   });
 
+  // ---- CONTROLLER INPUT (🔥 THIS IS THE FIX)
   socket.on('controller-input', (data) => {
-    console.log('controller-input received:', data);
-    const lobbyId = data.lobbyId || data;
-    console.log('lobbyId:', lobbyId);
-    if (lobbies[lobbyId]) {
-      const player = lobbies[lobbyId].players.find(p => p.id === socket.id);
-      console.log('player found:', player);
-      if (player) {
-        // Only increment on press, not on release
-        if (data.action === "press") {
-          player.score += 1;
-          console.log('score incremented to:', player.score);
-          io.to(lobbyId).emit('player-updated', lobbies[lobbyId].players);
-        }
-      }
+    const lobbyId = data.lobbyId?.toUpperCase();
+
+    if (!lobbies[lobbyId]) {
+      console.log(`❌ controller-input: lobby ${lobbyId} not found`);
+      return;
     }
+
+    const player = lobbies[lobbyId].players.find(
+      (p) => p.id === socket.id
+    );
+
+    if (!player) {
+      console.log(`❌ controller-input: player not found`);
+      return;
+    }
+
+    console.log(
+      `🎯 controller-input from ${player.name}:`,
+      data
+    );
+
+    // Update score (existing behavior)
+    if (data.action === 'press') {
+      player.score += 1;
+      io.to(lobbyId).emit('player-updated', lobbies[lobbyId].players);
+    }
+
+    // 🔥 SEND EVENT TO UNITY (THIS WAS MISSING)
+    io.to(lobbyId).emit('unity-event', {
+      type: 'BUTTON',
+      action: data.action,
+      playerId: player.id,
+      playerName: player.name,
+      lobbyId,
+      timestamp: Date.now(),
+    });
   });
 
+  // ---- DISCONNECT
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    console.log('🔌 user disconnected:', socket.id);
+
+    // Optional cleanup (not required for now)
+    for (const lobbyId in lobbies) {
+      lobbies[lobbyId].players = lobbies[lobbyId].players.filter(
+        (p) => p.id !== socket.id
+      );
+    }
   });
 });
 
-// Serve static files from the React app build directory
-app.use(express.static(path.join(__dirname, 'client/build')));
-
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
+// Catch-all → React
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
 });
 
+// Start server
 server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`Frontend available at http://localhost:${PORT}`);
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
