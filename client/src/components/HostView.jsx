@@ -40,20 +40,18 @@ function HostView() {
    *  SOCKET → UNITY BRIDGE
    * -------------------------------------------------- */
   useEffect(() => {
-    const forwardToUnity = (data) => {
-      if (!window.unityInstance) {
-        console.warn("⚠️ Unity instance not ready yet");
-        return;
-      }
+const handler = (data) => {
+  console.log("[HOST] forwarding to Unity:", data);
 
-      console.log("➡️ Forwarding to Unity:", data);
+  if (!unityReady || !window.unityInstance) return;
 
-      window.unityInstance.SendMessage(
-        "WebGLBridge",          // GameObject name
-        "OnControllerEvent",   // Method name
-        JSON.stringify(data)
-      );
-    };
+  window.unityInstance.SendMessage(
+    "WebGLBridge",
+    "OnControllerEvent",
+    JSON.stringify(data)
+  );
+};
+
 
     socket.on("unity-event", forwardToUnity);
     return () => socket.off("unity-event", forwardToUnity);

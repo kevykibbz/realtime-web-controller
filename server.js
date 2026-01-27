@@ -89,44 +89,29 @@ io.on('connection', (socket) => {
   });
 
   // ---- CONTROLLER INPUT (🔥 THIS IS THE FIX)
-  socket.on('controller-input', (data) => {
-    const lobbyId = data.lobbyId?.toUpperCase();
+socket.on("controller-input", (data) => {
+  console.log("[SERVER] controller-input received:", data);
 
-    if (!lobbies[lobbyId]) {
-      console.log(`❌ controller-input: lobby ${lobbyId} not found`);
-      return;
-    }
+  const { lobbyId, type, action } = data;
+  if (!lobbies[lobbyId]) return;
 
-    const player = lobbies[lobbyId].players.find(
-      (p) => p.id === socket.id
-    );
+  const player = lobbies[lobbyId].players.find(p => p.id === socket.id);
+  if (!player) return;
 
-    if (!player) {
-      console.log(`❌ controller-input: player not found`);
-      return;
-    }
+  if (action === "press") {
+    player.score += 1;
+  }
 
-    console.log(
-      `🎯 controller-input from ${player.name}:`,
-      data
-    );
-
-    // Update score (existing behavior)
-    if (data.action === 'press') {
-      player.score += 1;
-      io.to(lobbyId).emit('player-updated', lobbies[lobbyId].players);
-    }
-
-    // 🔥 SEND EVENT TO UNITY (THIS WAS MISSING)
-    io.to(lobbyId).emit('unity-event', {
-      type: 'BUTTON',
-      action: data.action,
-      playerId: player.id,
-      playerName: player.name,
-      lobbyId,
-      timestamp: Date.now(),
-    });
+  // 🔥 THIS IS THE MISSING LINK 🔥
+  io.to(lobbyId).emit("unity-event", {
+    type: "BUTTON",
+    action,
+    playerId: player.id,
   });
+
+  io.to(lobbyId).emit("player-updated", lobbies[lobbyId].players);
+});
+
 
   // ---- DISCONNECT
   socket.on('disconnect', () => {

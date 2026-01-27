@@ -98,18 +98,17 @@ function ControllerView() {
     joinLobby(lobbyId, playerName);
   };
 
-  const handleButtonPress = () => {
-  if (!lobbyId || !player) return;
-
-  socket.emit("controller-input", {
+const handleButtonPress = () => {
+  const payload = {
     lobbyId,
     type: "BUTTON",
     action: "press",
-    playerId: player.id
-  });
+  };
 
-  console.log("Sent BUTTON press");
+  console.log("[CONTROLLER] emitting controller-input", payload);
+  socket.emit("controller-input", payload);
 };
+
 
 const handleButtonRelease = () => {
   if (!lobbyId || !player) return;
