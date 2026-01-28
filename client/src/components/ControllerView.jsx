@@ -150,15 +150,14 @@ const handleButtonPress = () => {
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                <Button
-                  className="w-48 h-48 rounded-full text-2xl font-bold select-none bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
-                  onMouseDown={handleButtonPress}
-                  onMouseUp={handleButtonRelease}
-                  onTouchStart={handleButtonPress}
-                  onTouchEnd={handleButtonRelease}
-                >
-                  Press Me
-                </Button>
+				<Button
+				  className="w-48 h-48 rounded-full text-2xl font-bold select-none
+							 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+				  onMouseDown={handleButtonPress}
+				  onTouchStart={handleButtonPress}
+				>
+				  Press Me
+				</Button>
               </motion.div>
             </CardContent>
           </Card>
