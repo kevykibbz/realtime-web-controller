@@ -37,6 +37,16 @@ function HostView() {
   }, []);
 
   /* --------------------------------------------------
+   *  ENSURE HOST JOINS LOBBY ROOM  🔑 (NEW)
+   * -------------------------------------------------- */
+  useEffect(() => {
+    if (!lobbyId) return;
+
+    console.log("[HOST] joining lobby room:", lobbyId);
+    socket.emit("join-lobby-room", lobbyId);
+  }, [lobbyId, socket]);
+
+  /* --------------------------------------------------
    *  SOCKET → UNITY BRIDGE
    * -------------------------------------------------- */
   useEffect(() => {
@@ -49,8 +59,8 @@ function HostView() {
       console.log("➡️ Forwarding to Unity:", data);
 
       window.unityInstance.SendMessage(
-        "WebGLBridge",          // GameObject name
-        "OnControllerEvent",   // Method name
+        "WebGLBridge",
+        "OnControllerEvent",
         JSON.stringify(data)
       );
     };
@@ -68,9 +78,9 @@ function HostView() {
     socket.on("player-updated", setPlayers);
 
     return () => {
-      socket.off("lobby-created");
-      socket.off("player-joined");
-      socket.off("player-updated");
+      socket.off("lobby-created", setLobbyId);
+      socket.off("player-joined", setPlayers);
+      socket.off("player-updated", setPlayers);
     };
   }, [socket]);
 
@@ -134,9 +144,7 @@ function HostView() {
                   </h2>
                   <Button
                     variant="ghost"
-                    onClick={() =>
-                      navigator.clipboard.writeText(lobbyId)
-                    }
+                    onClick={() => navigator.clipboard.writeText(lobbyId)}
                   >
                     <ClipboardCopy className="mr-2" />
                     Copy

@@ -14,13 +14,13 @@ const PORT = process.env.PORT || 3001;
 
 const io = new Server(server, {
   cors: {
-    origin: true, // allow all origins (Render-friendly)
+    origin: true,
     methods: ["GET", "POST"],
   },
 });
 
 /* ============================
-   STATIC FRONTEND (HOST UI)
+   STATIC FRONTEND
 ============================ */
 
 app.use(express.static(path.join(__dirname, "client/build")));
@@ -50,27 +50,32 @@ io.on("connection", (socket) => {
   socket.on("create-lobby", () => {
     const lobbyId = generateLobbyId();
 
-    lobbies[lobbyId] = {
-      players: [],
-    };
-
+    lobbies[lobbyId] = { players: [] };
     socket.join(lobbyId);
 
     socket.emit("lobby-created", lobbyId);
-
     console.log("[SERVER] lobby created:", lobbyId);
   });
 
-  /* -------- JOIN LOBBY -------- */
+  /* -------- HOST REJOIN LOBBY (NEW) -------- */
+  socket.on("join-lobby-room", (lobbyId) => {
+    if (!lobbies[lobbyId]) {
+      console.warn("[SERVER] join-lobby-room failed:", lobbyId);
+      return;
+    }
+
+    socket.join(lobbyId);
+    console.log("[SERVER] host joined lobby room:", lobbyId);
+  });
+
+  /* -------- JOIN LOBBY (CONTROLLER) -------- */
   socket.on("join-lobby", (data) => {
-    const lobbyId = data.lobbyId;
-    const playerName = data.playerName || "Player";
+    const { lobbyId, playerName } = data;
 
     console.log("[SERVER] join-lobby:", lobbyId, playerName);
 
     if (!lobbies[lobbyId]) {
       socket.emit("join-lobby-error", "Lobby not found");
-      console.log("[SERVER] lobby not found:", lobbyId);
       return;
     }
 
@@ -78,7 +83,7 @@ io.on("connection", (socket) => {
 
     const newPlayer = {
       id: socket.id,
-      name: playerName,
+      name: playerName || "Player",
       score: 0,
     };
 
@@ -86,14 +91,10 @@ io.on("connection", (socket) => {
 
     socket.emit("join-lobby-success", newPlayer);
     io.to(lobbyId).emit("player-joined", lobbies[lobbyId].players);
-
-    console.log("[SERVER] player joined:", newPlayer);
   });
 
   /* -------- CONTROLLER INPUT -------- */
   socket.on("controller-input", (data) => {
-    console.log("[SERVER] controller-input received:", data);
-
     const { lobbyId, type, action } = data;
     if (!lobbies[lobbyId]) return;
 
@@ -103,26 +104,16 @@ io.on("connection", (socket) => {
 
     if (player && action === "press") {
       player.score += 1;
-      console.log("[SERVER] score incremented:", player);
-
-      io.to(lobbyId).emit(
-        "player-updated",
-        lobbies[lobbyId].players
-      );
+      io.to(lobbyId).emit("player-updated", lobbies[lobbyId].players);
     }
 
-    // 🚀 ALWAYS forward to Unity (this was the missing piece)
     io.to(lobbyId).emit("unity-event", {
       type: type || "BUTTON",
       action,
       playerId: socket.id,
     });
 
-    console.log("[SERVER] unity-event emitted:", {
-      lobbyId,
-      action,
-      socketId: socket.id,
-    });
+    console.log("[SERVER] unity-event emitted:", lobbyId, action);
   });
 
   /* -------- DISCONNECT -------- */
@@ -145,8 +136,5 @@ io.on("connection", (socket) => {
 ============================ */
 
 server.listen(PORT, () => {
-  console.log("=================================");
-  console.log("🚀 SERVER STARTED");
-  console.log("PORT:", PORT);
-  console.log("=================================");
+  console.log("🚀 SERVER STARTED ON PORT", PORT);
 });
