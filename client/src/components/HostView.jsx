@@ -72,17 +72,24 @@ function HostView() {
   /* --------------------------------------------------
    *  LOBBY EVENTS
    * -------------------------------------------------- */
-  useEffect(() => {
-    socket.on("lobby-created", setLobbyId);
-    socket.on("player-joined", setPlayers);
-    socket.on("player-updated", setPlayers);
+useEffect(() => {
+  const onLobbyCreated = (id) => {
+    console.log("[HOST] lobby created:", id);
+    setLobbyId(id);
+    socket.emit("join-lobby-room", id);
+  };
 
-    return () => {
-      socket.off("lobby-created", setLobbyId);
-      socket.off("player-joined", setPlayers);
-      socket.off("player-updated", setPlayers);
-    };
-  }, [socket]);
+  socket.on("lobby-created", onLobbyCreated);
+  socket.on("player-joined", setPlayers);
+  socket.on("player-updated", setPlayers);
+
+  return () => {
+    socket.off("lobby-created", onLobbyCreated);
+    socket.off("player-joined", setPlayers);
+    socket.off("player-updated", setPlayers);
+  };
+}, [socket]);
+
 
   const createLobby = () => socket.emit("create-lobby");
 
