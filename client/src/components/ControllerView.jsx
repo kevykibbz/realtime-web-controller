@@ -116,8 +116,29 @@ const handleButtonPress = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className="flex flex-col items-center justify-center min-h-screen bg-gray-900"
+        className="flex flex-col items-center justify-center min-h-screen bg-gray-900 relative"
       >
+        {/* Score - Top Right Corner */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 15 }}
+          className="fixed top-4 right-4 text-white text-2xl font-bold z-50"
+        >
+          Score: {player.score}
+        </motion.div>
+
+        {/* Online Players - Top Left Corner */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 15 }}
+          className="fixed top-4 left-4 text-white text-lg font-bold flex items-center z-50"
+        >
+          <Users className="w-5 h-5 mr-2" />
+          {Math.max(0, onlinePlayers - 1)} online
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -128,23 +149,6 @@ const handleButtonPress = () => {
               <CardTitle className="text-gray-300">Lobby: {lobbyId}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col justify-center items-center h-64">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 15 }}
-                className="absolute top-4 right-4 text-white text-2xl font-bold"
-              >
-                Score: {player.score}
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 15 }}
-                className="absolute top-4 left-4 text-white text-lg font-bold flex items-center"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                {Math.max(0, onlinePlayers - 1)} online
-              </motion.div>
               <motion.div
                 whileTap={{ scale: 0.85 }}
                 whileHover={{ scale: 1.05 }}

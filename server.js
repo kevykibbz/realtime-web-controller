@@ -14,22 +14,51 @@ const PORT = process.env.PORT || 3001;
    SOCKET.IO SETUP
 ============================ */
 
+// Load configuration from environment variables
+const PING_TIMEOUT = parseInt(process.env.SOCKET_PING_TIMEOUT) || 60000;
+const PING_INTERVAL = parseInt(process.env.SOCKET_PING_INTERVAL) || 25000;
+const UPGRADE_TIMEOUT = parseInt(process.env.SOCKET_UPGRADE_TIMEOUT) || 30000;
+const CORS_ORIGIN = process.env.CORS_ORIGIN === 'true' ? true : process.env.CORS_ORIGIN || true;
+
 const io = new Server(server, {
   cors: {
-    origin: true,
+    origin: CORS_ORIGIN,
     methods: ["GET", "POST"],
+    credentials: true,
   },
+  transports: ['websocket', 'polling'],
+  pingTimeout: PING_TIMEOUT,
+  pingInterval: PING_INTERVAL,
+  upgradeTimeout: UPGRADE_TIMEOUT,
+  allowUpgrades: true,
 });
+
+console.log(`[CONFIG] Socket.IO ping interval: ${PING_INTERVAL}ms, timeout: ${PING_TIMEOUT}ms`);
+
+// KEEPALIVE: Prevent Render from closing idle connections
+setInterval(() => {
+  io.sockets.sockets.forEach((socket) => {
+    if (socket.connected) {
+      socket.emit('ping');
+    }
+  });
+}, PING_INTERVAL);
 
 /* ============================
-   STATIC FRONTEND
+   STATIC FRONTEND (PRODUCTION ONLY)
 ============================ */
 
-app.use(express.static(path.join(__dirname, "client/build")));
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, "client/build")));
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "client/build", "index.html"));
-});
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.json({ status: 'Server running', message: 'Use Vite dev server on port 3000 for frontend' });
+  });
+}
 
 /* ============================
    LOBBY STATE
@@ -47,6 +76,8 @@ function generateLobbyId() {
 
 io.on("connection", (socket) => {
   console.log("[SERVER] socket connected:", socket.id);
+  console.log("[SERVER] connection from origin:", socket.handshake.headers.origin);
+  console.log("[SERVER] transport:", socket.conn.transport.name);
 
   /* -------- CREATE LOBBY -------- */
   socket.on("create-lobby", () => {
@@ -139,5 +170,5 @@ io.on("connection", (socket) => {
 ============================ */
 
 server.listen(PORT, () => {
-  console.log("🚀 SERVER STARTED ON PORT", PORT);
+  console.log("SERVER STARTED ON PORT", PORT);
 });

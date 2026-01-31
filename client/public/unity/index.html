@@ -26,7 +26,7 @@
       background: black;
     }
 
-    /* 🔒 FIXED SIZE — NO RESPONSIVE SCALING */
+    /* FIXED SIZE — NO RESPONSIVE SCALING */
     #unity-canvas {
       width: 960px;
       height: 600px;
@@ -44,7 +44,7 @@
   <script>
     const canvas = document.getElementById("unity-canvas");
 
-    // 🔒 HARD-LOCK ACTUAL CANVAS RESOLUTION
+    //HARD-LOCK ACTUAL CANVAS RESOLUTION
     canvas.width = 960;
     canvas.height = 600;
 
@@ -60,7 +60,7 @@
       productName: "BSG",
       productVersion: "0.1.0",
 
-      // 🔒 CRITICAL FOR WEBGL STABILITY
+      // CRITICAL FOR WEBGL STABILITY
       devicePixelRatio: 1,
       matchWebGLToCanvasSize: true,
     };
@@ -74,7 +74,7 @@
           // expose for HostView
           window.unityInstance = unityInstance;
 
-          // ✅ GUARANTEED HANDSHAKE WITH HOST
+          // GUARANTEED HANDSHAKE WITH HOST
           try {
             if (window.parent && window.parent !== window) {
               window.parent.postMessage({ type: "UNITY_READY" }, "*");
@@ -86,6 +86,27 @@
           }
 
           console.log("Unity ready");
+
+          // LISTEN FOR MESSAGES FROM HOST
+          window.addEventListener("message", (event) => {
+            console.log("Unity received postMessage:", event.data);
+            
+            if (event.data?.type === "unity-event" || event.data?.action) {
+              console.log("Forwarding to Unity C# via SendMessage");
+              try {
+                window.unityInstance.SendMessage(
+                  "WebGLBridge",
+                  "OnControllerEvent",
+                  JSON.stringify(event.data)
+                );
+                console.log("Message sent to Unity C#");
+              } catch (e) {
+                console.error("Failed to send to Unity:", e);
+              }
+            }
+          });
+
+          console.log("Unity message listener registered");
         })
         .catch((err) => {
           console.error("Unity failed to load:", err);

@@ -67,24 +67,25 @@ function HostView() {
    * -------------------------------------------------- */
   useEffect(() => {
     const forwardToUnity = (data) => {
-      console.log("✅ Host received unity-event:", data); // 🔧 HARD PROOF LOG
+      console.log("Host received unity-event from Socket.IO:", data);
 
       // 🔧 FIX: Unity lives inside the iframe
       const unityWin = iframeRef.current?.contentWindow;
-      const unityInstance = unityWin?.unityInstance;
-
-      if (!unityInstance) {
-        console.warn("⚠️ Unity instance not ready in iframe");
+      
+      if (!unityWin) {
+        console.error(" iframe contentWindow not accessible");
         return;
       }
 
-      console.log("➡️ Forwarding to Unity:", data);
+      console.log(" Forwarding via postMessage to Unity iframe:", data);
 
-      unityInstance.SendMessage(
-        "WebGLBridge",
-        "OnControllerEvent",
-        JSON.stringify(data)
-      );
+      // Send via postMessage to the Unity iframe
+      unityWin.postMessage({
+        type: 'unity-event',
+        ...data
+      }, '*');
+
+      console.log("Message posted to Unity iframe");
     };
 
     socket.on("unity-event", forwardToUnity);
@@ -170,7 +171,19 @@ function HostView() {
                     {playersList.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>{p.name}</TableCell>
-                        <TableCell className="text-right">{p.score}</TableCell>
+                        <TableCell className="text-right">
+                          <span style={{ 
+                            display: 'inline-block', 
+                            whiteSpace: 'nowrap',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: 'normal',
+                            wordSpacing: 'normal',
+                            writingMode: 'horizontal-tb',
+                            direction: 'ltr'
+                          }}>
+                            {p.score}
+                          </span>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

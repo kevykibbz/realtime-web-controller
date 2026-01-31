@@ -1,10 +1,11 @@
 {
   "compilerOptions": {
     "baseUrl": "src",
-     "paths": {
+    "paths": {
       "@/*": ["*"]
     },
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+    "types": [] // Exclude all default type definitions, including 'node'
   },
   "include": ["src"]
 }

@@ -4,5 +4,12 @@ services:
     build: .
     ports:
       - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SOCKET_PING_TIMEOUT=60000
+      - SOCKET_PING_INTERVAL=25000
+      - SOCKET_UPGRADE_TIMEOUT=30000
+      - CORS_ORIGIN=true
     restart: unless-stopped
 
