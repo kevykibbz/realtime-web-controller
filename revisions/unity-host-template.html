@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Unity WebGL | BSG Game</title>
+
+  <link rel="shortcut icon" href="TemplateData/favicon.ico" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #lobby-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      z-index: 1000;
+    }
+
+    #lobby-screen.hidden {
+      display: none;
+    }
+
+    .lobby-card {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 2.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      min-width: 400px;
+      text-align: center;
+    }
+
+    .lobby-card h1 {
+      color: #1e3a8a;
+      margin-bottom: 1rem;
+      font-size: 2rem;
+    }
+
+    .lobby-card p {
+      color: #64748b;
+      margin-bottom: 2rem;
+    }
+
+    .lobby-id-display {
+      background: #f1f5f9;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      margin: 1.5rem 0;
+      border: 2px dashed #cbd5e1;
+    }
+
+    .lobby-id-display h2 {
+      color: #334155;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .lobby-id-display .lobby-id {
+      color: #1e3a8a;
+      font-size: 2.5rem;
+      font-weight: bold;
+      letter-spacing: 0.25rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .btn {
+      background: #1e3a8a;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    .btn:hover {
+      background: #1e40af;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .status-message {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    #unity-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: black;
+    }
+
+    #unity-canvas {
+      width: 960px;
+      height: 600px;
+      background: black;
+      display: block;
+    }
+
+    #unity-loading-bar {
+      position: absolute;
+      bottom: 20px;
+      width: 300px;
+    }
+
+    #unity-progress-bar-empty {
+      width: 100%;
+      height: 10px;
+      background: #222;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    #unity-progress-bar-full {
+      width: 0%;
+      height: 100%;
+      background: #f4c430;
+      transition: width 0.3s;
+    }
+
+    .info-overlay {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      z-index: 100;
+    }
+
+    .info-overlay div {
+      margin: 0.25rem 0;
+    }
+
+    .info-overlay .label {
+      color: #94a3b8;
+    }
+
+    .info-overlay .value {
+      color: #22c55e;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Lobby Screen -->
+  <div id="lobby-screen">
+    <div class="lobby-card">
+      <h1>🎮 Game Host</h1>
+      <p>Create a lobby for players to join</p>
+      
+      <div id="lobby-id-display" class="lobby-id-display" style="display: none;">
+        <h2>Share this code with players</h2>
+        <div class="lobby-id" id="lobby-id-text">------</div>
+      </div>
+      
+      <button class="btn" id="create-lobby-btn" onclick="createLobby()">
+        Create Lobby
+      </button>
+      
+      <div id="status-message" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Unity Game -->
+  <div id="unity-container">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+
+    <div id="unity-loading-bar">
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Overlay (shows lobby ID and connection status) -->
+  <div class="info-overlay" id="info-overlay" style="display: none;">
+    <div><span class="label">Lobby ID:</span> <span class="value" id="info-lobby-id">---</span></div>
+    <div><span class="label">Status:</span> <span class="value" id="info-status">Connecting...</span></div>
+    <div><span class="label">Players:</span> <span class="value" id="info-players">0</span></div>
+  </div>
+
+  <!-- Socket.IO Client Library -->
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+  <script>
+    /*****************************************************************
+     * GLOBAL STATE
+     *****************************************************************/
+    let socket = null;
+    let currentLobbyId = null;
+    let unityInstance = null;
+    let unityReady = false;
+
+    /*****************************************************************
+     * DOM REFERENCES
+     *****************************************************************/
+    const canvas = document.getElementById("unity-canvas");
+    const loadingBar = document.getElementById("unity-loading-bar");
+    const progressBarFull = document.getElementById("unity-progress-bar-full");
+    const lobbyScreen = document.getElementById("lobby-screen");
+    const infoOverlay = document.getElementById("info-overlay");
+
+    /*****************************************************************
+     * SOCKET CONNECTION
+     *****************************************************************/
+    function initializeSocket() {
+      // Connect to the server (automatically uses current origin)
+      socket = io();
+
+      socket.on("connect", () => {
+        console.log("✅ Connected to server. Socket ID:", socket.id);
+        updateStatus("Connected");
+      });
+
+      socket.on("disconnect", () => {
+        console.log("❌ Disconnected from server");
+        updateStatus("Disconnected");
+      });
+
+      socket.on("lobby-created", (lobbyId) => {
+        console.log("✅ Lobby created:", lobbyId);
+        currentLobbyId = lobbyId;
+        updateLobbyDisplay(lobbyId);
+        startUnityGame();
+      });
+
+      socket.on("player-joined", (players) => {
+        console.log("👥 Players updated:", players);
+        document.getElementById("info-players").textContent = players.length;
+      });
+
+      socket.on("player-updated", (players) => {
+        console.log("📊 Player scores updated:", players);
+      });
+
+      socket.on("controller-input", (data) => {
+        console.log("🎮 Controller input:", data);
+        // Unity will also receive this via the socketBridge.jslib
+      });
+
+      socket.on("connect_error", (error) => {
+        console.error("Connection error:", error);
+        showMessage("Connection failed. Is the server running?", "error");
+      });
+    }
+
+    /*****************************************************************
+     * LOBBY MANAGEMENT
+     *****************************************************************/
+    function createLobby() {
+      if (!socket) {
+        showMessage("Connecting...", "error");
+        return;
+      }
+
+      document.getElementById("create-lobby-btn").disabled = true;
+      document.getElementById("create-lobby-btn").textContent = "Creating...";
+      
+      socket.emit("create-lobby");
+    }
+
+    function updateLobbyDisplay(lobbyId) {
+      document.getElementById("lobby-id-text").textContent = lobbyId;
+      document.getElementById("lobby-id-display").style.display = "block";
+      document.getElementById("info-lobby-id").textContent = lobbyId;
+      
+      showMessage("Lobby created! Share the code with players.", "success");
+      
+      // Update button
+      const btn = document.getElementById("create-lobby-btn");
+      btn.textContent = "Starting Game...";
+      
+      // Hide lobby screen after 2 seconds
+      setTimeout(() => {
+        lobbyScreen.classList.add("hidden");
+        infoOverlay.style.display = "block";
+      }, 2000);
+    }
+
+    function updateStatus(status) {
+      document.getElementById("info-status").textContent = status;
+    }
+
+    function showMessage(message, type) {
+      const statusEl = document.getElementById("status-message");
+      statusEl.textContent = message;
+      statusEl.className = `status-message ${type}`;
+      statusEl.style.display = "block";
+    }
+
+    /*****************************************************************
+     * UNITY INITIALIZATION
+     *****************************************************************/
+    function startUnityGame() {
+      console.log("🎮 Starting Unity game...");
+      
+      const buildUrl = "Build";
+      const loaderUrl = buildUrl + "/WebSocketTest.loader.js";
+
+      const config = {
+        dataUrl: buildUrl + "/WebSocketTest.data",
+        frameworkUrl: buildUrl + "/WebSocketTest.framework.js",
+        codeUrl: buildUrl + "/WebSocketTest.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "BSG",
+        productVersion: "0.1.0",
+        devicePixelRatio: 1,
+        matchWebGLToCanvasSize: false,
+      };
+
+      // Set up progress bar
+      progressBarFull.style.width = "0%";
+      loadingBar.style.display = "block";
+
+      // Create Unity instance
+      const script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = (100 * progress) + "%";
+        }).then((instance) => {
+          unityInstance = instance;
+          unityReady = true;
+          loadingBar.style.display = "none";
+          console.log("✅ Unity instance created and ready");
+          updateStatus("Unity Ready");
+        }).catch((error) => {
+          console.error("❌ Unity initialization error:", error);
+          showMessage("Failed to load game: " + error, "error");
+        });
+      };
+      
+      script.onerror = () => {
+        console.error("❌ Failed to load Unity loader script");
+        showMessage("Failed to load Unity game files", "error");
+      };
+      
+      document.body.appendChild(script);
+    }
+
+    /*****************************************************************
+     * INITIALIZE ON PAGE LOAD
+     *****************************************************************/
+    window.addEventListener("load", () => {
+      console.log("🚀 Initializing application...");
+      initializeSocket();
+    });
+
+    // Expose socket to Unity bridge
+    window.getSocket = () => socket;
+    window.getLobbyId = () => currentLobbyId;
+  </script>
+</body>
+</html>

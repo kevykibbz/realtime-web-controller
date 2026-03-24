@@ -77,6 +77,15 @@ io.on('connection', (socket) => {
           console.log('score incremented to:', player.score);
           io.to(lobbyId).emit('player-updated', lobbies[lobbyId].players);
         }
+        
+        // Broadcast controller input to Unity host with player ID
+        io.to(lobbyId).emit('controller-input', {
+          type: data.type || 'BUTTON',
+          action: data.action,
+          playerId: socket.id,
+          playerName: player.name
+        });
+        console.log('Broadcasted controller-input to lobby:', lobbyId);
       }
     }
   });

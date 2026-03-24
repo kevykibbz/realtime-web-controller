@@ -1,0 +1,55 @@
+using UnityEngine;
+using TMPro;
+using System.Runtime.InteropServices;
+
+public class WebGLBridge : MonoBehaviour
+{
+    public TextMeshProUGUI text_test;
+    private int pressCount = 0;
+
+    [System.Serializable]
+    public class ControllerEvent
+    {
+        public string type;
+        public string action;
+        public string playerId;
+    }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [DllImport("__Internal")]
+    private static extern void InitSocket(string gameObjectName);
+#endif
+
+    void Awake()
+    {
+        Debug.Log("WebGLBridge Awake");
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        InitSocket(gameObject.name);
+#endif
+    }
+
+    // Called from JS via SendMessage
+    public void OnControllerEvent(string json)
+    {
+        Debug.Log("Controller event JSON: " + json);
+
+        var evt = JsonUtility.FromJson<ControllerEvent>(json);
+
+        if (evt.type == "BUTTON" && evt.action == "press")
+        {
+            Fire();
+        }
+    }
+
+    void Fire()
+    {
+        pressCount++;
+        Debug.Log("BUTTON PRESSED FROM PHONE. Count: " + pressCount);
+
+        if (text_test != null)
+        {
+            text_test.text = pressCount.ToString();
+        }
+    }
+}
