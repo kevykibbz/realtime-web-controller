@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Unity WebGL | BSG</title>
+
+  <link rel="stylesheet" href="TemplateData/style.css" />
+  <link rel="shortcut icon" href="TemplateData/favicon.ico" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #unity-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: black;
+    }
+
+    /* FIXED SIZE — NO RESPONSIVE SCALING */
+    #unity-canvas {
+      width: 960px;
+      height: 600px;
+      background: black;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="unity-container">
+    <canvas id="unity-canvas"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("unity-canvas");
+
+    //HARD-LOCK ACTUAL CANVAS RESOLUTION
+    canvas.width = 960;
+    canvas.height = 600;
+
+    const buildUrl = "Build";
+    const loaderUrl = buildUrl + "/WebSocketTest.loader.js";
+
+    const config = {
+      dataUrl: buildUrl + "/WebSocketTest.data",
+      frameworkUrl: buildUrl + "/WebSocketTest.framework.js",
+      codeUrl: buildUrl + "/WebSocketTest.wasm",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DefaultCompany",
+      productName: "BSG",
+      productVersion: "0.1.0",
+
+      // CRITICAL FOR WEBGL STABILITY
+      devicePixelRatio: 1,
+      matchWebGLToCanvasSize: true,
+    };
+
+    const script = document.createElement("script");
+    script.src = loaderUrl;
+
+    script.onload = () => {
+      createUnityInstance(canvas, config)
+        .then((unityInstance) => {
+          // expose for HostView
+          window.unityInstance = unityInstance;
+
+          // GUARANTEED HANDSHAKE WITH HOST
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ type: "UNITY_READY" }, "*");
+            } else {
+              window.postMessage({ type: "UNITY_READY" }, "*");
+            }
+          } catch (e) {
+            console.warn("UNITY_READY postMessage failed:", e);
+          }
+
+          console.log("Unity ready");
+
+          // LISTEN FOR MESSAGES FROM HOST
+          window.addEventListener("message", (event) => {
+            console.log("Unity received postMessage:", event.data);
+            
+            if (event.data?.type === "unity-event" || event.data?.action) {
+              console.log("Forwarding to Unity C# via SendMessage");
+              try {
+                window.unityInstance.SendMessage(
+                  "WebGLBridge",
+                  "OnControllerEvent",
+                  JSON.stringify(event.data)
+                );
+                console.log("Message sent to Unity C#");
+              } catch (e) {
+                console.error("Failed to send to Unity:", e);
+              }
+            }
+          });
+
+          console.log("Unity message listener registered");
+        })
+        .catch((err) => {
+          console.error("Unity failed to load:", err);
+        });
+    };
+
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
